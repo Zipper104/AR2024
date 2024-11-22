@@ -1,0 +1,128 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include <time.h>
+
+// Constants
+#define APARTMENT_PRICE 10000000.0
+#define BOB_SALARY 250000.0
+#define BOB_EXPENSES 50000.0
+#define ALICE_SALARY 200000.0
+#define ALICE_EXPENSES 80000.0 // 50000 (personal) + 30000 (rent)
+#define BOB_INTEREST_RATE 0.20
+#define ALICE_INTEREST_RATE 0.17
+#define LOAN_TERM_YEARS 30
+
+// Функция для расчета ежемесячного платежа по ипотеке
+double calculate_monthly_payment(double principal, double annual_interest_rate, int loan_term_years) {
+ // Ежемесячная процентная ставка
+ double monthly_interest_rate = annual_interest_rate / 12.0;
+ // Общее количество платежей
+ int total_payments = loan_term_years * 12;
+ // Если процентная ставка равна 0, возвращаем ежемесячный платеж по основному долгу
+ if (monthly_interest_rate == 0.0) return principal / total_payments;
+ // Формула расчета ежемесячного платежа по ипотеке
+ return (principal * monthly_interest_rate) / (1 - pow(1 + monthly_interest_rate, -total_payments));
+}
+
+// Функция для добавления месяцев к дате
+struct tm* add_months(struct tm* date, int months) {
+ // Добавление месяцев к месяцу
+ date->tm_mon += months;
+ // Добавление лет, если число месяцев превышает 12
+ date->tm_year += date->tm_mon / 12;
+ // Обновление месяца после перехода в новый год
+ date->tm_mon %= 12;
+ return date;
+}
+
+// Функция для форматирования даты
+char* format_date(struct tm* date) {
+ // Выделение памяти для буфера
+ char* buffer = (char*)malloc(80 * sizeof(char));
+ // Проверка успешности выделения памяти
+ if (buffer == NULL) {
+ fprintf(stderr, "Ошибка выделения памяти\n");
+ exit(1);
+ }
+ // Форматирование даты с использованием strftime
+ strftime(buffer, 80, "%B %Y", date); // Форматирование (месяц год)
+ return buffer;
+}
+
+int main() {
+ // Расчет ипотеки для Боба (с ежемесячными платежами)
+ double bob_monthly_payment = calculate_monthly_payment(APARTMENT_PRICE, BOB_INTEREST_RATE, LOAN_TERM_YEARS);
+ // Ежемесячный располагаемый доход Боба
+ double bob_monthly_disposable_income = BOB_SALARY - BOB_EXPENSES;
+ // Счетчик месяцев для Боба
+ int bob_months = 0;
+ // Остаток по ипотеке для Боба
+ double bob_remaining_balance = APARTMENT_PRICE;
+
+ // Проверка может ли Боб позволить себе ипотеку
+ if (bob_monthly_payment > bob_monthly_disposable_income) {
+ printf("Боб не может позволить себе ипотеку.\n");
+ return 1;
+ }
+
+ // Цикл расчета времени погашения ипотеки для Боба
+ while (bob_remaining_balance > 0) {
+ // Вычисление ежемесячного платежа по процентам
+ double interest_payment = bob_remaining_balance * (BOB_INTEREST_RATE / 12.0);
+ // Вычисление ежемесячного платежа по основному долгу
+ double principal_payment = bob_monthly_disposable_income - interest_payment;
+ // Обновление остатка по ипотеке
+ bob_remaining_balance -= principal_payment;
+ // Увеличение счетчика месяцев
+ bob_months++;
+ }
+
+ // Расчет сбережений для Алисы
+ double alice_savings = 0.0;
+ // Ежемесячный вклад Алисы
+ double alice_monthly_contribution = ALICE_SALARY - ALICE_EXPENSES;
+ // Ежемесячная процентная ставка для Алисы
+ double alice_monthly_interest_rate = ALICE_INTEREST_RATE / 12.0;
+ // Счетчик месяцев для Алисы
+ int alice_months = 0;
+
+ // Цикл расчета времени накопления суммы для Алисы
+ while (alice_savings < APARTMENT_PRICE) {
+ // Обновление сбережений с учетом процентов
+ alice_savings *= (1 + alice_monthly_interest_rate);
+ // Добавление ежемесячного вклада к сбережениям
+ alice_savings += alice_monthly_contribution;
+ // Увеличение счетчика месяцев
+ alice_months++;
+ }
+
+ // Получение текущей даты
+ time_t rawtime;
+ struct tm* timeinfo;
+ time(&rawtime);
+ timeinfo = localtime(&rawtime);
+ // Установка месяца на сентябрь 2024
+ timeinfo->tm_mon = 8; // Сентябрь (месяц 8)
+ timeinfo->tm_year = 2024 - 1900; // Годы с 1900
+
+ // Вычисление даты погашения ипотеки для Боба
+ struct tm* bob_completion_date = add_months(timeinfo, bob_months);
+ // Вычисление даты накопления суммы для Алисы
+ struct tm* alice_completion_date = add_months(timeinfo, alice_months);
+
+ // Форматирование даты погашения ипотеки для Боба
+ char* bob_date_str = format_date(bob_completion_date);
+ // Форматирование даты накопления суммы для Алисы
+ char* alice_date_str = format_date(alice_completion_date);
+
+ // Вывод результатов
+ printf("Боб погасит ипотеку через %d месяцев, примерно %s.\n", bob_months, bob_date_str);
+ printf("Алиса накопит достаточно для квартиры через %d месяцев, примерно %s.\n", alice_months, alice_date_str);
+
+ // Освобождение выделенной памяти
+ free(bob_date_str);
+ free(alice_date_str);
+
+ return 0;
+}
